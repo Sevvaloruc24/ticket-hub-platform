@@ -1,19 +1,18 @@
-
+version: '3.8'
 
 services:
   postgres:
     image: postgres:16-alpine
     container_name: ticket-postgres
-    restart: always
     environment:
-      POSTGRES_DB: ticketdb
       POSTGRES_USER: ticketuser
       POSTGRES_PASSWORD: ticketpassword
+      POSTGRES_DB: ticketdb
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./deploy/k8s/base/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infra/k8s/base/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ticketuser -d ticketdb"]
       interval: 5s
@@ -23,8 +22,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ticket-redis
-    restart: always
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "redispassword"]
+    command: ["redis-server", "--requirepass", "redispassword"]
     ports:
       - "6379:6379"
     volumes:
@@ -34,6 +32,51 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  mock-external-service:
+    build:
+      context: ./services/mock-external-service
+      dockerfile: Dockerfile
+    container_name: ticket-mock-payment
+    ports:
+      - "4000:4000"
+
+  ticket-service:
+    build:
+      context: ./services/ticket-service
+      dockerfile: Dockerfile
+    container_name: ticket-backend
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ticketuser
+      DB_PASSWORD: ticketpassword
+      DB_NAME: ticketdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redispassword
+      PAYMENT_SERVICE_URL: http://mock-external-service:4000
+      LOCK_TTL_SECONDS: 120
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-external-service:
+        condition: service_started
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: ticket-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - ticket-service
 
 volumes:
   postgres_data:
