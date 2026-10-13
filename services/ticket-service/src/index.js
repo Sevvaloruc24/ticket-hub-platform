@@ -41,7 +41,7 @@ app.get('/seats', async (req, res) => {
         const lockVal = await redis.get(`lock:seat:${seat.id}`);
         if (lockVal) {
           const ttl = await redis.ttl(`lock:seat:${seat.id}`);
-          return { ...seat, status: 'LOCKED', lockTtl: ttl };
+          return { ...seat, status: 'LOCKED', lockedBy: lockVal, lockTtl: ttl };
         }
         return { ...seat, status: 'AVAILABLE', lockTtl: 0 };
       })
@@ -75,6 +75,22 @@ app.post('/seats/:id/lock', async (req, res) => {
     }
 
     res.json({ message: 'Seat locked successfully', seatId: id, ttl: LOCK_TTL });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/seats/:id/unlock', async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+
+  try {
+    const lockVal = await redis.get(`lock:seat:${id}`);
+    if (lockVal === userId) {
+      await redis.del(`lock:seat:${id}`);
+      return res.json({ message: 'Seat unlocked successfully' });
+    }
+    res.status(403).json({ error: 'Cannot unlock a seat not locked by you' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
