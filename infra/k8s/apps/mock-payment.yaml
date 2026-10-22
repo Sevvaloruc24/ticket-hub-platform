@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-payment-deployment
+  labels:
+    app: mock-payment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-payment
+  template:
+    metadata:
+      labels:
+        app: mock-payment
+    spec:
+      containers:
+        - name: mock-payment
+          image: ticket-mock-external:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "150m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-payment-service
+spec:
+  selector:
+    app: mock-payment
+  ports:
+    - protocol: TCP
+      port: 4000
+      targetPort: 4000

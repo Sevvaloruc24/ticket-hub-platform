@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-service-deployment
+  labels:
+    app: ticket-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ticket-service
+  template:
+    metadata:
+      labels:
+        app: ticket-service
+    spec:
+      containers:
+        - name: ticket-service
+          image: ticket-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "ticketuser"
+            - name: DB_PASSWORD
+              value: "ticketpassword"
+            - name: DB_NAME
+              value: "ticketdb"
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "redispassword"
+            - name: PAYMENT_SERVICE_URL
+              value: "http://mock-payment-service:4000"
+            - name: LOCK_TTL_SECONDS
+              value: "120"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+spec:
+  selector:
+    app: ticket-service
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-backend-service
+spec:
+  selector:
+    app: ticket-service
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
