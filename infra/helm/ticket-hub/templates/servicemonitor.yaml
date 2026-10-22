@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ticket-service-monitor
+  namespace: monitoring
+  labels:
+    release: prometheus-stack
+    {{- include "ticket-hub.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: ticket-service
+  namespaceSelector:
+    matchNames:
+      - default
+  endpoints:
+    - port: tcp-3000
+      path: /metrics
+      interval: 15s
