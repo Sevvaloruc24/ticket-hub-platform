@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-payment-deployment
+  labels:
+    {{- include "ticket-hub.labels" . | nindent 4 }}
+    app: mock-payment
+spec:
+  replicas: {{ .Values.mockPayment.replicaCount }}
+  selector:
+    matchLabels:
+      app: mock-payment
+  template:
+    metadata:
+      labels:
+        app: mock-payment
+    spec:
+      containers:
+        - name: mock-payment
+          image: "{{ .Values.mockPayment.image.repository }}:{{ .Values.mockPayment.image.tag }}"
+          imagePullPolicy: {{ .Values.mockPayment.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mockPayment.port }}
+          resources:
+            {{- toYaml .Values.mockPayment.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-payment-service
+  labels:
+    {{- include "ticket-hub.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: mock-payment
+  ports:
+    - protocol: TCP
+      port: {{ .Values.mockPayment.port }}
+      targetPort: {{ .Values.mockPayment.port }}

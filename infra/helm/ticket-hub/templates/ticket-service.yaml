@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-service-deployment
+  labels:
+    {{- include "ticket-hub.labels" . | nindent 4 }}
+    app: ticket-service
+spec:
+  replicas: {{ .Values.ticketService.replicaCount }}
+  selector:
+    matchLabels:
+      app: ticket-service
+  template:
+    metadata:
+      labels:
+        app: ticket-service
+    spec:
+      containers:
+        - name: ticket-service
+          image: "{{ .Values.ticketService.image.repository }}:{{ .Values.ticketService.image.tag }}"
+          imagePullPolicy: {{ .Values.ticketService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ticketService.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.ticketService.port | quote }}
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_PORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: DB_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgres.password | quote }}
+            - name: DB_NAME
+              value: {{ .Values.postgres.database | quote }}
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: {{ .Values.redis.port | quote }}
+            - name: REDIS_PASSWORD
+              value: {{ .Values.redis.password | quote }}
+            - name: PAYMENT_SERVICE_URL
+              value: "http://mock-payment-service:{{ .Values.mockPayment.port }}"
+            - name: LOCK_TTL_SECONDS
+              value: {{ .Values.ticketService.lockTtlSeconds | quote }}
+          resources:
+            {{- toYaml .Values.ticketService.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ticketService.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ticketService.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+  labels:
+    {{- include "ticket-hub.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: ticket-service
+  ports:
+    - protocol: TCP
+      port: {{ .Values.ticketService.port }}
+      targetPort: {{ .Values.ticketService.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-backend-service
+  labels:
+    {{- include "ticket-hub.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: ticket-service
+  ports:
+    - protocol: TCP
+      port: {{ .Values.ticketService.port }}
+      targetPort: {{ .Values.ticketService.port }}

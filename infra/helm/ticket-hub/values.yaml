@@ -1,0 +1,83 @@
+global:
+  environment: local
+
+postgres:
+  image: postgres:15-alpine
+  port: 5432
+  user: ticketuser
+  password: ticketpassword
+  database: ticketdb
+  storage: 1Gi
+
+redis:
+  image: redis:7-alpine
+  port: 6379
+  password: redispassword
+
+mockPayment:
+  replicaCount: 1
+  image:
+    repository: ticket-mock-external
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 4000
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "150m"
+      memory: "128Mi"
+
+ticketService:
+  replicaCount: 2
+  image:
+    repository: ticket-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 3000
+  lockTtlSeconds: 120
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+web:
+  replicaCount: 1
+  image:
+    repository: ticket-web
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 80
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  hosts:
+    - host: ""
+      paths:
+        - path: /api(/|$)(.*)
+          pathType: ImplementationSpecific
+          service: ticket-service
+          port: 3000
+        - path: /(.*)
+          pathType: ImplementationSpecific
+          service: web-service
+          port: 80
