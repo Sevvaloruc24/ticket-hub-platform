@@ -15,7 +15,7 @@ redis:
   password: redispassword
 
 mockPayment:
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: ticket-mock-external
     tag: latest
@@ -51,7 +51,7 @@ ticketService:
     targetCPUUtilizationPercentage: 70
 
 web:
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: ticket-web
     tag: latest
